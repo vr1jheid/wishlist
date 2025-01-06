@@ -11,28 +11,51 @@ import { getColumns } from "widgets/Wishlist/utils/getColumns.tsx";
 import { normalizeTableData } from "widgets/Wishlist/utils/normalizeTableData.ts";
 import { api, CreateRowOptions } from "shared/api";
 import { UnwrapPromise } from "shared/utils/unwrapPromise.ts";
+import { LinksField } from "widgets/Wishlist/ui/LinksField";
 
 type Sheet = UnwrapPromise<ReturnType<typeof api.getSheets>>[0];
 
+const linksModel = () => {
+  const linksAtom = atom<string[]>([], "linksAtom");
+  const setLink = action((ctx, index: number, value: string) => {
+    linksAtom(
+      ctx,
+      (prev) => {
+        const copy = [...prev];
+        copy[index] = value;
+        console.log(copy);
+        return copy;
+      },
+      // prev.map((link, i) => (index !== i ? link : value)),
+    );
+  }, "setLink");
+  const linksResultAtom = atom((ctx) => {
+    const res = ctx.spy(linksAtom).join(" ").trim();
+    console.log(res);
+    return res;
+  }, "linksResultAtom");
+  return { links: linksResultAtom, setLink };
+};
+
 export const tableModel = () => {
+  const { links, setLink } = linksModel();
+
   const selectedSheetAtom = atom<Sheet>(
     { id: 0, title: "" },
     "selectedSheetAtom",
   );
 
-  const sheetNames = reatomResource(
+  const sheets = reatomResource(
     async (ctx) => ctx.schedule(async () => await api.getSheets()),
     "sheetNames",
   ).pipe(withDataAtom([]), withStatusesAtom());
 
-  sheetNames.onFulfill.onCall((ctx, payload) => {
+  sheets.onFulfill.onCall((ctx, payload) => {
     selectedSheetAtom(ctx, payload[0]);
   });
 
   const selectSheet = action((ctx, sheetName: string) => {
-    const sheet = ctx
-      .get(sheetNames.dataAtom)
-      .find((s) => s.title === sheetName);
+    const sheet = ctx.get(sheets.dataAtom).find((s) => s.title === sheetName);
     if (!sheet) throw new Error("Sheet name was not found");
     console.log(sheet);
     selectedSheetAtom(ctx, sheet);
@@ -41,23 +64,35 @@ export const tableModel = () => {
   const tableData = reatomResource(async (ctx) => {
     const selectedSheet = ctx.spy(selectedSheetAtom);
     return ctx.schedule(async () => {
-      console.log(selectSheet);
       if (!selectedSheet) return;
       return await api.getTable(selectedSheet.title);
     });
-  }).pipe(withDataAtom(), withStatusesAtom(), withCache());
+  }, "tableData").pipe(withDataAtom(), withStatusesAtom(), withCache());
 
-  const columns = atom((ctx) => {
+  const columnsAtom = atom((ctx) => {
     const table = ctx.spy(tableData.dataAtom);
+
     if (!table) return [];
-    return getColumns(table[0]);
-  });
+    return getColumns(table[0], {
+      links: {
+        Edit: (props) => (
+          <LinksField
+            onChange={(...params) => setLink(ctx, ...params)}
+            {...props}
+          />
+        ),
+      },
+    });
+  }, "columnsAtom");
 
   const normalizedData = atom((ctx) => {
     const table = ctx.spy(tableData.dataAtom);
-    if (!table) return [];
-    return normalizeTableData(table);
-  });
+    const columns = ctx.spy(columnsAtom);
+
+    if (!table || !columns) return [];
+    const result = normalizeTableData(table, columns);
+    return result;
+  }, "normalizedDataAtom");
 
   const createRowAction = reatomAsync(async (_, options: CreateRowOptions) => {
     return await api.createRow({ ...options, row: options.row + 2 });
@@ -77,20 +112,25 @@ export const tableModel = () => {
 
   const isLoadingAtom = atom((ctx) => {
     return (
-      ctx.spy(sheetNames.statusesAtom).isPending ||
+      ctx.spy(sheets.statusesAtom).isPending ||
       ctx.spy(tableData.statusesAtom).isPending ||
       ctx.spy(deleteRow.pendingAtom) > 0
     );
   }, "isLoadingAtom");
 
   return {
-    sheetNames,
+    sheets,
     data: normalizedData,
     selectedSheetAtom,
     selectSheet,
-    columns,
+    columnsAtom,
     isLoadingAtom,
-    createRowAction,
-    deleteRow,
+    fabric: {
+      createRowAction,
+      deleteRow,
+    },
+    createFieldValues: {
+      links,
+    },
   };
 };
