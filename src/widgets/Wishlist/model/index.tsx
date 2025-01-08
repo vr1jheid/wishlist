@@ -16,29 +16,37 @@ import { LinksField } from "widgets/Wishlist/ui/LinksField";
 type Sheet = UnwrapPromise<ReturnType<typeof api.getSheets>>[0];
 
 const linksModel = () => {
-  const linksAtom = atom<string[]>([], "linksAtom");
-  const setLink = action((ctx, index: number, value: string) => {
-    linksAtom(
-      ctx,
-      (prev) => {
-        const copy = [...prev];
-        copy[index] = value;
-        console.log(copy);
-        return copy;
-      },
-      // prev.map((link, i) => (index !== i ? link : value)),
+  const counterLinksAtom = atom(0);
+  const linksAtom = atom<{ id: number; value: string }[]>(
+    [{ id: 0, value: "" }],
+    "linksAtom",
+  );
+  const setLink = action((ctx, id: number, value: string) => {
+    linksAtom(ctx, (prev) =>
+      prev.map((link) => (link.id !== id ? link : { ...link, value })),
     );
   }, "setLink");
+
+  const deleteLink = action((ctx, id: number) => {
+    linksAtom(ctx, (prev) => prev.filter((link) => link.id !== id));
+  });
   const linksResultAtom = atom((ctx) => {
     const res = ctx.spy(linksAtom).join(" ").trim();
     console.log(res);
     return res;
   }, "linksResultAtom");
-  return { links: linksResultAtom, setLink };
+  const addLink = action((ctx) => {
+    counterLinksAtom(ctx, (prev) => prev + 1);
+    linksAtom(ctx, (prev) => [
+      ...prev,
+      { id: ctx.get(counterLinksAtom), value: "" },
+    ]);
+  });
+  return { links: linksResultAtom, setLink, deleteLink, linksAtom, addLink };
 };
 
 export const tableModel = () => {
-  const { links, setLink } = linksModel();
+  const { links, setLink, deleteLink, linksAtom, addLink } = linksModel();
 
   const selectedSheetAtom = atom<Sheet>(
     { id: 0, title: "" },
@@ -77,10 +85,18 @@ export const tableModel = () => {
       links: {
         Edit: (props) => (
           <LinksField
+            linksAtom={linksAtom}
             onChange={(...params) => setLink(ctx, ...params)}
+            onDelete={(id) => deleteLink(ctx, id)}
+            onAdd={() => addLink(ctx)}
             {...props}
           />
         ),
+      },
+      desire: {
+        /*        Cell: ({renderedCellValue}) => {
+          return <Rating defaultValue={renderedCellValue} count={10}/>
+        }*/
       },
     });
   }, "columnsAtom");

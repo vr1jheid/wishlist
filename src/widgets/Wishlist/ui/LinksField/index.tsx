@@ -1,33 +1,57 @@
-import { reatomComponent, useAtom } from "@reatom/npm-react";
+import { reatomComponent } from "@reatom/npm-react";
 import { MRT_ColumnDef } from "mantine-react-table";
 import { WishListTableRow } from "widgets/Wishlist/model/Table.types.ts";
 import { Button, Text, TextInput } from "@mantine/core";
+import { IconSquareRoundedPlusFilled, IconX } from "@tabler/icons-react";
+import { AtomMut } from "@reatom/framework";
 
 type LinksFieldProps = Parameters<
   Exclude<MRT_ColumnDef<WishListTableRow>["Edit"], undefined>
 >[0] & {
-  onChange: (index: number, value: string) => void;
+  linksAtom: AtomMut<{ id: number; value: string }[]>;
+  onChange: (id: number, value: string) => void;
+  onDelete: (id: number) => void;
+  onAdd: () => void;
 };
 
-export const LinksField = reatomComponent<LinksFieldProps>(({ onChange }) => {
-  const [inputsCount, setInputsCount] = useAtom(0);
-  console.log("rerender", inputsCount);
+export const LinksField = reatomComponent<LinksFieldProps>(
+  ({ ctx, onChange, linksAtom, onDelete, onAdd }) => {
+    const inputs = ctx.spy(linksAtom);
 
-  return (
-    <>
-      <Text>Ссылки</Text>
-      {Array(inputsCount)
-        .fill(0)
-        .map((_, index) => (
+    return (
+      <>
+        <Text>Ссылки</Text>
+        {inputs.map(({ id, value }) => (
           <TextInput
-            key={index}
+            rightSection={
+              <Button
+                onClick={() => {
+                  onDelete(id);
+                }}
+                compact
+                color="gray"
+                size="xs"
+                variant="subtle"
+              >
+                <IconX />
+              </Button>
+            }
+            key={id}
+            value={value}
             onChange={(e) => {
-              //setInputValue(index, e.target.value);
-              onChange(index, e.target.value);
+              onChange(id, e.target.value);
             }}
           />
         ))}
-      <Button onClick={() => setInputsCount((prev) => prev + 1)}>Add</Button>
-    </>
-  );
-});
+        <Button
+          color="gray"
+          variant="outline"
+          leftIcon={<IconSquareRoundedPlusFilled />}
+          onClick={onAdd}
+        >
+          Добавить ссылку
+        </Button>
+      </>
+    );
+  },
+);

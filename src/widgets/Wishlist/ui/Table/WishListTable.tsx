@@ -51,6 +51,7 @@ export const WishlistTable = reatomComponent(({ ctx }) => {
   const isLoading = ctx.spy(model.isLoadingAtom);
   const createRow = ctx.bind(model.fabric.createRowAction);
   const deleteRow = ctx.bind(model.fabric.deleteRow);
+  console.log("rerenderTable");
 
   const table = useMantineReactTable({
     columns,
