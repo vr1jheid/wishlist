@@ -10,13 +10,16 @@ import {
   LoadingOverlay,
   Select,
   Text,
-  Tooltip,
 } from "@mantine/core";
-import { CreateRowCustomModal } from "../Modals/CreateRowCustomModal.tsx";
+import { CreateRowCustomModal } from "../Modals";
 import { reatomComponent } from "@reatom/npm-react";
 import { tableModel } from "widgets/Wishlist/model";
 import { useMemo } from "react";
-import { IconEdit, IconTrash } from "@tabler/icons-react";
+import {
+  IconEdit,
+  IconSquareRoundedPlusFilled,
+  IconTrash,
+} from "@tabler/icons-react";
 import { modals } from "@mantine/modals";
 import { WishListTableRow } from "widgets/Wishlist/model/Table.types.ts";
 
@@ -41,13 +44,14 @@ const openDeleteConfirmModal = (
 export const WishlistTable = reatomComponent(({ ctx }) => {
   const model = useMemo(() => tableModel(), []);
   const data = ctx.spy(model.data);
-  const columns = ctx.spy(model.columns);
-  const sheets = ctx.spy(model.sheetNames.dataAtom);
+  const columns = ctx.spy(model.columnsAtom);
+  const sheets = ctx.spy(model.sheets.dataAtom);
   const selectedSheet = ctx.spy(model.selectedSheetAtom);
   const setSheet = ctx.bind(model.selectSheet);
   const isLoading = ctx.spy(model.isLoadingAtom);
-  const createRow = ctx.bind(model.createRowAction);
-  const deleteRow = ctx.bind(model.deleteRow);
+  const createRow = ctx.bind(model.fabric.createRowAction);
+  const deleteRow = ctx.bind(model.fabric.deleteRow);
+  console.log("rerenderTable");
 
   const table = useMantineReactTable({
     columns,
@@ -62,50 +66,63 @@ export const WishlistTable = reatomComponent(({ ctx }) => {
       },
     },
     renderTopToolbarCustomActions: ({ table }) => (
-      <>
+      <Flex gap="md">
+        <Button
+          color="gray"
+          variant="outline"
+          onClick={() => table.setCreatingRow(true)}
+        >
+          <IconSquareRoundedPlusFilled />
+        </Button>
         <Select
           onChange={(value) => value && setSheet(value)}
           value={selectedSheet.title}
           data={sheets.map((s) => s.title)}
         />
-
-        <Button onClick={() => table.setCreatingRow(true)}>Добавить</Button>
-      </>
+      </Flex>
     ),
     renderRowActions: ({ row, table }) => (
       <Flex gap="md">
-        <Tooltip label="Изменить">
-          <ActionIcon onClick={() => table.setEditingRow(row)}>
-            <IconEdit />
-          </ActionIcon>
-        </Tooltip>
-        <Tooltip label="Удалить">
-          <ActionIcon
-            color="red"
-            onClick={() => {
-              openDeleteConfirmModal(row, deleteRow);
-            }}
-          >
-            <IconTrash />
-          </ActionIcon>
-        </Tooltip>
+        <ActionIcon onClick={() => table.setEditingRow(row)}>
+          <IconEdit />
+        </ActionIcon>
+
+        <ActionIcon
+          color="red"
+          onClick={() => {
+            openDeleteConfirmModal(row, deleteRow);
+          }}
+        >
+          <IconTrash />
+        </ActionIcon>
       </Flex>
     ),
     renderCreateRowModalContent: (e) => (
       <CreateRowCustomModal
-        pendingAtom={model.createRowAction.pendingAtom}
+        pendingAtom={model.fabric.createRowAction.pendingAtom}
         {...e}
       />
     ),
-    onCreatingRowSave: async ({ values, exitCreatingMode }) => {
-      await createRow({
-        data: Object.values(values),
-        row: data.length,
-        list: selectedSheet.title,
-      });
+    onCreatingRowSave: async ({ values, exitCreatingMode, row, table }) => {
+      console.log(values);
+      console.log(model.createFieldValues.links);
+      const data = {
+        ...values,
+        links: ctx.get(model.createFieldValues.links),
+      };
+      // await createRow({
+      //   data: Object.values({
+      //     ...values,
+      //     links: ctx.get(model.createFieldValues.links),
+      //   }),
+      //   row: data.length,
+      //   list: selectedSheet.title,
+      // });
       exitCreatingMode();
     },
   });
+
+  // console.log(data);
 
   return (
     <div className="w-full h-full min-h-fit min-w-fit">

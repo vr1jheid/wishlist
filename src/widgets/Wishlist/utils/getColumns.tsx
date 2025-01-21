@@ -1,10 +1,16 @@
 import { getAccessorKey } from "./getAccessorKey.ts";
-import { MRT_Cell, MRT_ColumnDef } from "mantine-react-table";
+import { MRT_ColumnDef } from "mantine-react-table";
 import { WishListTableRow } from "../model/Table.types.ts";
-import { Cell } from "widgets/Wishlist/ui/Cell/Cell.tsx";
-import { TextInput } from "@mantine/core";
 
-export const getColumns = (arr: string[]) => {
+type Options = Partial<
+  Record<
+    keyof WishListTableRow,
+    Omit<MRT_ColumnDef<WishListTableRow>, "accessorKey" | "header">
+  >
+>;
+
+export const getColumns = (arr: string[], options: Options) => {
+  const optionsKeys = Object.keys(options);
   return arr.map<MRT_ColumnDef<WishListTableRow>>((colName, i) => {
     const accessorKey = getAccessorKey(i);
     const basic: MRT_ColumnDef<WishListTableRow> = {
@@ -12,26 +18,14 @@ export const getColumns = (arr: string[]) => {
       accessorKey,
     };
 
-    if (accessorKey === "links") {
+    if (optionsKeys.includes(accessorKey)) {
       return {
         ...basic,
-        Cell: ({ cell }: { cell: MRT_Cell<WishListTableRow> }) => (
-          <Cell width={200}>{cell.getValue<string>()}</Cell>
-        ),
-        Edit: ({ row, table }) => {
-          return (
-            <TextInput
-              placeholder="Ссылки"
-              onChange={(e) => {
-                table.setCreatingRow({
-                  ...row,
-                  _valuesCache: { ...row.original, links: e.target.value },
-                });
-                console.log(row);
-              }}
-            />
-          );
-        },
+        ...options[accessorKey],
+        // Cell: ({ cell }: { cell: MRT_Cell<WishListTableRow> }) => (
+        //   <Cell width={200}>{cell.getValue<string>()}</Cell>
+        // ),
+        // Edit: LinksField,
       };
     }
     return basic;

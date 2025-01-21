@@ -8,7 +8,10 @@ import { createDevtools } from "@reatom/devtools";
 import { ModalsProvider } from "@mantine/modals";
 
 const ctx = createCtx();
-createDevtools({ ctx });
+
+if (import.meta.env.DEV) {
+  createDevtools({ ctx });
+}
 
 export const Providers = () => {
   return (

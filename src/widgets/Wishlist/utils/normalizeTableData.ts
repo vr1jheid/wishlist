@@ -1,9 +1,11 @@
-import { getColumns } from "./getColumns.tsx";
-import { ColumnsKeys } from "../model/Table.types.ts";
+import { ColumnsKeys, WishListTableRow } from "../model/Table.types.ts";
+import { MRT_ColumnDef } from "mantine-react-table";
 
-export const normalizeTableData = (arr: string[][]) => {
-  const [columnsArr, ...table] = arr;
-  const columns = getColumns(columnsArr);
+export const normalizeTableData = (
+  arr: string[][],
+  columns: MRT_ColumnDef<WishListTableRow>[],
+) => {
+  const [_, ...table] = arr;
   return table.map((row) =>
     row.reduce(
       (acc, cell, index) => {
